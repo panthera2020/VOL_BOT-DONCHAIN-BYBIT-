@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Perp Volume Bot — Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="brand">
+      <span class="dot" id="bot-dot">●</span>
+      <h1>Perp Volume Bot <small>Donchian Edition</small></h1>
+    </div>
+    <div class="header-right">
+      <span id="network-badge" class="badge {% if testnet %}badge-warn{% else %}badge-live{% endif %}">
+        {% if testnet %}TESTNET{% else %}🔴 LIVE{% endif %}
+      </span>
+      <button id="btn-start" onclick="botStart()">▶ Start</button>
+      <button id="btn-stop"  onclick="botStop()">■ Stop</button>
+    </div>
+  </header>
+
+  <!-- ── STAT CARDS ── -->
+  <section class="stat-cards">
+    <div class="card">
+      <label>Balance</label>
+      <span id="s-balance">—</span>
+    </div>
+    <div class="card">
+      <label>Total PnL</label>
+      <span id="s-pnl">—</span>
+    </div>
+    <div class="card">
+      <label>Win Rate</label>
+      <span id="s-winrate">—</span>
+    </div>
+    <div class="card">
+      <label>Total Trades</label>
+      <span id="s-total">—</span>
+    </div>
+    <div class="card">
+      <label>Winners</label>
+      <span id="s-win">—</span>
+    </div>
+    <div class="card">
+      <label>Losers</label>
+      <span id="s-lose">—</span>
+    </div>
+    <div class="card">
+      <label>Volume Generated</label>
+      <span id="s-volume">—</span>
+    </div>
+    <div class="card">
+      <label>Open Positions</label>
+      <span id="s-open">—</span>
+    </div>
+  </section>
+
+  <!-- ── LIVE POSITIONS (from exchange) ── -->
+  <section>
+    <h2>Live Positions <small>(from Bybit)</small></h2>
+    <table id="tbl-live">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Side</th><th>Size</th>
+          <th>Entry Price</th><th>Mark Price</th>
+          <th>Unrealised PnL</th><th>Leverage</th>
+        </tr>
+      </thead>
+      <tbody id="live-body"><tr><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- ── OPEN TRADES (bot tracked) ── -->
+  <section>
+    <h2>Open Trades <small>(bot tracked)</small></h2>
+    <table id="tbl-open">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Side</th><th>Entry</th>
+          <th>SL</th><th>TP</th><th>Qty</th>
+          <th>Notional</th><th>Risk</th><th>Opened</th>
+        </tr>
+      </thead>
+      <tbody id="open-body"><tr><td colspan="9">Loading…</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- ── CLOSED TRADES ── -->
+  <section>
+    <h2>Closed Trades</h2>
+    <table id="tbl-closed">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th>
+          <th>SL</th><th>TP</th><th>Qty</th>
+          <th>PnL $</th><th>PnL %</th><th>Reason</th>
+          <th>Opened</th><th>Closed</th>
+        </tr>
+      </thead>
+      <tbody id="closed-body"><tr><td colspan="12">Loading…</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- ── TRADE HISTORY CHART ── -->
+  <section>
+    <h2>Cumulative PnL Chart</h2>
+    <canvas id="pnl-chart" height="80"></canvas>
+  </section>
+
+  <!-- ── SYMBOLS WATCHLIST ── -->
+  <section>
+    <h2>Symbols Watched</h2>
+    <div class="symbol-list">
+      {% for s in symbols %}
+      <span class="sym-badge">{{ s }}</span>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ── BOT LOGS ── -->
+  <section>
+    <h2>Bot Log <button class="small" onclick="loadLogs()">Refresh</button></h2>
+    <div id="log-box"></div>
+  </section>
+
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── State
+let pnlChart = null;
+
+// ── Utils
+const $ = id => document.getElementById(id);
+const fmt  = (n, dec=2) => n != null ? parseFloat(n).toFixed(dec) : '—';
+const fmtUSD = n => '$' + fmt(n);
+const pnlClass = n => parseFloat(n) >= 0 ? 'pos' : 'neg';
+
+// ── Init Chart
+function initChart(labels, data) {
+  if (pnlChart) pnlChart.destroy();
+  const ctx = $('pnl-chart').getContext('2d');
+  pnlChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Cumulative PnL ($)',
+        data: data,
+        borderColor: '#00e5ff',
+        backgroundColor: 'rgba(0,229,255,0.07)',
+        borderWidth: 2,
+        pointRadius: 3,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#ccc' } } },
+      scales: {
+        x: { ticks: { color: '#888', maxTicksLimit: 12 }, grid: { color: '#1e1e2e' } },
+        y: { ticks: { color: '#888' }, grid: { color: '#1e1e2e' } },
+      }
+    }
+  });
+}
+
+// ── API Calls
+async function get(url) {
+  const r = await fetch(url); return r.json();
+}
+async function post(url) {
+  const r = await fetch(url, { method: 'POST' }); return r.json();
+}
+
+async function botStart() { await post('/api/bot/start'); loadStatus(); }
+async function botStop()  { await post('/api/bot/stop');  loadStatus(); }
+
+// ── Load Stats
+async function loadStats() {
+  const s = await get('/api/stats');
+  $('s-pnl').textContent    = fmtUSD(s.total_pnl);
+  $('s-pnl').className      = pnlClass(s.total_pnl);
+  $('s-winrate').textContent = fmt(s.win_rate) + '%';
+  $('s-total').textContent   = s.total_trades;
+  $('s-win').textContent     = s.winning_trades;
+  $('s-lose').textContent    = s.losing_trades;
+  $('s-volume').textContent  = fmtUSD(s.volume_usd);
+  $('s-balance').textContent = fmtUSD(s.balance_usd);
+}
+
+// ── Load Status
+async function loadStatus() {
+  const s = await get('/api/status');
+  const dot = $('bot-dot');
+  dot.style.color = s.running ? '#4ade80' : '#ef4444';
+  $('s-open').textContent   = s.open_trades ? s.open_trades.length : 0;
+}
+
+// ── Load Live Positions
+async function loadPositions() {
+  const rows = await get('/api/positions');
+  const body = $('live-body');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7">No live positions</td></tr>'; return; }
+  body.innerHTML = rows.filter(r => parseFloat(r.size) > 0).map(r => `
+    <tr>
+      <td>${r.symbol}</td>
+      <td class="${r.side === 'Buy' ? 'pos' : 'neg'}">${r.side === 'Buy' ? 'LONG' : 'SHORT'}</td>
+      <td>${r.size}</td>
+      <td>${fmt(r.avgPrice, 6)}</td>
+      <td>${fmt(r.markPrice, 6)}</td>
+      <td class="${pnlClass(r.unrealisedPnl)}">${fmtUSD(r.unrealisedPnl)}</td>
+      <td>${r.leverage}x</td>
+    </tr>`).join('') || '<tr><td colspan="7">No active positions</td></tr>';
+}
+
+// ── Load Open Trades
+async function loadOpenTrades() {
+  const rows = await get('/api/trades/open');
+  const body = $('open-body');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="9">No open trades</td></tr>'; return; }
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.symbol}</td>
+      <td class="${r.side === 'long' ? 'pos' : 'neg'}">${r.side.toUpperCase()}</td>
+      <td>${fmt(r.entry_price, 6)}</td>
+      <td>${fmt(r.sl_price, 6)}</td>
+      <td>${fmt(r.tp_price, 6)}</td>
+      <td>${r.qty}</td>
+      <td>${fmtUSD(r.notional_usd)}</td>
+      <td>${fmtUSD(r.risk_usd)}</td>
+      <td>${r.open_time ? r.open_time.slice(0,19) : '—'}</td>
+    </tr>`).join('');
+}
+
+// ── Load Closed Trades
+async function loadClosedTrades() {
+  const rows = await get('/api/trades/closed');
+  const body = $('closed-body');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="12">No closed trades</td></tr>'; return; }
+
+  // Build PnL chart
+  let cum = 0;
+  const labels = [], data = [];
+  [...rows].reverse().forEach((r, i) => {
+    cum += (r.pnl_usd || 0);
+    labels.push(r.close_time ? r.close_time.slice(0,10) : `T${i+1}`);
+    data.push(parseFloat(cum.toFixed(4)));
+  });
+  initChart(labels, data);
+
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.symbol}</td>
+      <td class="${r.side === 'long' ? 'pos' : 'neg'}">${r.side.toUpperCase()}</td>
+      <td>${fmt(r.entry_price, 6)}</td>
+      <td>${fmt(r.exit_price, 6)}</td>
+      <td>${fmt(r.sl_price, 6)}</td>
+      <td>${fmt(r.tp_price, 6)}</td>
+      <td>${r.qty}</td>
+      <td class="${pnlClass(r.pnl_usd)}">${fmtUSD(r.pnl_usd)}</td>
+      <td class="${pnlClass(r.pnl_pct)}">${fmt(r.pnl_pct)}%</td>
+      <td><span class="badge-reason ${r.close_reason}">${r.close_reason || '—'}</span></td>
+      <td>${r.open_time ? r.open_time.slice(0,19) : '—'}</td>
+      <td>${r.close_time ? r.close_time.slice(0,19) : '—'}</td>
+    </tr>`).join('');
+}
+
+// ── Load Logs
+async function loadLogs() {
+  const rows = await get('/api/logs?limit=80');
+  $('log-box').innerHTML = rows.map(r =>
+    `<div class="log-line log-${(r.level||'').toLowerCase()}">
+      [${r.logged_at.slice(0,19)}] [${r.level}] ${r.symbol ? '['+r.symbol+']' : ''} ${r.message}
+    </div>`).join('');
+}
+
+// ── Refresh All
+async function refreshAll() {
+  await Promise.all([
+    loadStats(), loadStatus(), loadPositions(),
+    loadOpenTrades(), loadClosedTrades(), loadLogs()
+  ]);
+}
+
+// ── Auto refresh every 15s
+refreshAll();
+setInterval(refreshAll, 15000);
+</script>
+</body>
+</html>

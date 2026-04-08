@@ -1,0 +1,158 @@
+/* ── Reset & Base */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0d0d17;
+  --surface: #13131f;
+  --card:    #1a1a2e;
+  --border:  #2a2a45;
+  --accent:  #00e5ff;
+  --green:   #4ade80;
+  --red:     #f87171;
+  --text:    #e2e8f0;
+  --muted:   #64748b;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wrapper { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+/* ── Header */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { font-size: 1.4rem; color: var(--accent); }
+.brand small { font-size: 0.75rem; color: var(--muted); margin-left: 8px; }
+#bot-dot { font-size: 1.2rem; transition: color 0.4s; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+button {
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+button:hover { background: var(--border); }
+button.small { padding: 4px 10px; font-size: 12px; }
+
+/* ── Badges */
+.badge {
+  padding: 4px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+}
+.badge-warn { background: #78350f; color: #fbbf24; }
+.badge-live { background: #450a0a; color: #f87171; }
+.badge-reason { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-reason.tp { background: #052e16; color: #4ade80; }
+.badge-reason.sl { background: #450a0a; color: #f87171; }
+.badge-reason.exchange_closed { background: #1e1b4b; color: #a78bfa; }
+
+/* ── Stat Cards */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.card label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.card span  { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+
+/* ── Sections */
+section { margin-bottom: 32px; }
+section h2 {
+  font-size: 1rem;
+  color: var(--accent);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+thead tr { background: var(--card); }
+th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+td { padding: 10px 12px; border-top: 1px solid var(--border); font-size: 13px; }
+tr:hover td { background: rgba(255,255,255,0.03); }
+
+/* ── PnL Colors */
+.pos { color: var(--green) !important; }
+.neg { color: var(--red)   !important; }
+
+/* ── Symbol List */
+.symbol-list { display: flex; gap: 10px; flex-wrap: wrap; }
+.sym-badge {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ── Log Box */
+#log-box {
+  background: #0a0a12;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.log-line { padding: 1px 0; border-bottom: 1px solid #1a1a2e; }
+.log-info  { color: #94a3b8; }
+.log-error { color: var(--red); }
+.log-warn  { color: #fbbf24; }
+
+/* ── Chart */
+#pnl-chart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+/* ── Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
